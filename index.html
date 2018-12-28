@@ -4,8 +4,8 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <link rel="shortcut icon" type="image/png" href="../../img/favicon.png" />
-  <title>Anten IO : Portfolios : Equations</title>
+  <link rel="shortcut icon" type="image/png" href="" />
+  <title>File Browser</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link rel="stylesheet" href="/localcdn/bootstrap/dist/css/bootstrap.min.css">
@@ -18,53 +18,88 @@
 
 <body>
 
-  <div class="container">
-    <div class="row bg-light">
-      <div class="col-3 bg-primary"></div>
+  <div class="container-fluid" style="height: 100vh;">
+    <div class="row bg-lightcc h-100">
+      <div id="dirtree" class="col-6 h-100 pl-0 pr-0"></div>
       <div class="col-3 bg-warning"></div>
-      <div class="col-6 bg-info"></div>
+      <div class="col-3 bg-primary"></div>
     </div>
   </div>
 
   <script>
+    function formatBytes(a, b) {
+      if (0 == a) return "0 Bytes";
+      var c = 1024, d = b || 2,
+        e = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
+        f = Math.floor(Math.log(a) / Math.log(c));
+      return parseFloat((a / Math.pow(c, f)).toFixed(d)) + " " + e[f]
+    }
+
+    function parseTree(obj, level = 0) {
+      if (obj.children) {
+        obj.data = obj.children
+        delete obj.children
+        obj.data.forEach(function (item) { item = parseTree(item, level + 1) })
+        return obj
+      }
+    }
+
     webix.ready(function () {
-
       webix.ui({
-        view: "uploader",
-        id: "uploadx",
-        name: "file",
-        value: "Upload file",
-        link: "mylist",
-        upload: "/filesystem/api/files",
-        formData: { users: ["guest"], folder: "test/upload" },
-        autosend: false,
-        on: {
-          "onAfterFileAdd": function (file) {
-            console.log(file)
-            this.define("formData", { users: ["guest"], folder: "test/upload", mdate: file.file.lastModifiedDate })
-            this.send(file.id)
+        container: "dirtree",
+        margin: 0,
+        rows: [
+          {
+            id: "directoryTree",
+            view: "treetable",
+            columns: [
+              { id: "name", header: "Path", fillspace: 1, template: "{common.treetable()} #name#" },
+              { id: "size", header: "Size", width: 125, template: function (obj) { return formatBytes(obj.size); } },
+            ],
+            url: "/filesystem/api/dirtree",
+            select: true,
+            scrollX: false,
           },
-          // "onUploadComplete": function (response) {
-          //   webix.message("Done");
-          //   console.log(response)
-          // },
-          // "onFileUpload": function (file, response) {
-          //   console.log(file)
-          // }
-        }
+          {
+            // view: "fieldset",
+            // label: "Add folder",
+            // body: {
+            cols: [
+              { id: "addFolderText", view: "text", placeholder: "Folder name ...", label: "Folder name", },
+              {
+                id: "addFolderButton", view: "button", label: "Add", width: 100, click: function () {
+                  var parent = $$("directoryTree").getSelectedItem()
+                  if (parent.type == "directory") {
+                    var path = parent.name
+                    var parentId = ""
+                    while (parent.$level > 1) {
+                      parentId = $$("directoryTree").getParentId(parent.id)
+                      parent = $$("directoryTree").getItem(parentId)
+                      path = parent.name + "/" + path
+                    }
+                    webix.ajax().get("/filesystem/api/mkdir?path=" + path + "/" + $$("addFolderText").getValue(), function (t, d, x) {
+                      if (!d.json().error) {
+                        $$("directoryTree").clearAll()
+                        webix.ajax().get("/filesystem/api/dirtree", function (t, d, x) {
+                          items = d.json()
+                          $$("directoryTree").parse(parseTree(items));
+                          // $$("directoryTree").add({ name: $$("addFolderText").getValue() }, 0, $$("directoryTree").getSelectedItem().$level)
+                        })
+                      }
+                    })
+                  }
+                }
+              }
+            ]
+            // }
+          }
+        ]
+      });
+      $$("directoryTree").clearAll()
+      webix.ajax().get("/filesystem/api/dirtree", function (t, d, x) {
+        items = d.json()
+        $$("directoryTree").parse(parseTree(items));
       })
-      document.getElementsByClassName("webix_hidden_upload")[0].style.display = "none";
-
-      webix.ui({
-        view: "list",
-        id: "mylist",
-        type: "uploader",
-        select: true,
-        autoheight: true,
-        borderless: true,
-
-      })
-
     });
   </script>
 
