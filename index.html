@@ -53,17 +53,16 @@
             id: "directoryTree",
             view: "treetable",
             columns: [
-              { id: "name", header: "Path", fillspace: 1, template: "{common.treetable()} #name#" },
+              { id: "name", header: "Path", editor: "text", fillspace: 1, template: "{common.treetable()} #name#" },
               { id: "size", header: "Size", width: 125, template: function (obj) { return formatBytes(obj.size); } },
             ],
             url: "/filesystem/api/dirtree",
             select: true,
             scrollX: false,
+            editable: true,
+            editaction: "dblclick"
           },
           {
-            // view: "fieldset",
-            // label: "Add folder",
-            // body: {
             cols: [
               { id: "addFolderText", view: "text", placeholder: "Folder name ...", label: "Folder name", },
               {
@@ -89,9 +88,17 @@
                     })
                   }
                 }
+              },
+              {
+                id: "addFolderButton2", view: "button", label: "Add folder", click: function () {
+                  var parentId = $$("directoryTree").getSelectedId() || 0
+                  var folderName = "New Folder " + $$("directoryTree").find({ $parent: parentId}).filter(function(item){
+                    return item.name.indexOf("New Folder") > -1
+                  }).length
+                  $$("directoryTree").add({ name: folderName, size: 0 }, 0)
+                }
               }
             ]
-            // }
           }
         ]
       });
@@ -102,5 +109,8 @@
       })
     });
   </script>
+
+  <script src="js/contextmenu.js"></script>
+  <script src="js/events.js"></script>
 
 </body>
